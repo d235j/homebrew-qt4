@@ -1,65 +1,15 @@
-class QtCorelibAT4 < Formula
+require File.dirname(__FILE__) + "/lib/qtformula.rb"
+
+class QtCorelibAT4 < QtFormula
   desc "Core library for Qt 4"
-  homepage "https://www.qt.io/"
-  url "https://download.qt.io/official_releases/qt/4.8/4.8.7/qt-everywhere-opensource-src-4.8.7.tar.gz"
-  mirror "https://www.mirrorservice.org/sites/download.qt-project.org/official_releases/qt/4.8/4.8.7/qt-everywhere-opensource-src-4.8.7.tar.gz"
-  sha256 "e2882295097e47fe089f8ac741a95fef47e0a73a3f3cdf21b56990638f626ea0"
-
-  head "https://code.qt.io/qt/qt.git", :branch => "4.8"
-  env :userpaths
-
+  
   depends_on "cartr/qt4/moc@4"
-
-  def install
-    args = %W[
-      -prefix #{prefix}
-      -release
-      -opensource
-      -confirm-license
-      -fast
-      -system-zlib
-      -nomake demos
-      -nomake examples
-      -cocoa
-    ]
-
-    if ENV.compiler == :clang
-      args << "-platform"
-
-      if MacOS.version >= :mavericks
-        args << "unsupported/macx-clang-libc++"
-      else
-        args << "unsupported/macx-clang"
-      end
-    end
-
-    if MacOS.prefer_64_bit?
-      args << "-arch" << "x86_64"
-    else
-      args << "-arch" << "x86"
-    end
-
-    ln_s Formula["cartr/qt4/moc@4"].prefix/"bin/moc", "bin/moc"
-    system "./configure", *args
-    Dir.chdir('src/corelib')
-    system "make"
-    ENV.j1
-    system "make", "install"
-
-    # Some config scripts will only find Qt in a "Frameworks" folder
-    frameworks.install_symlink Dir["#{lib}/*.framework"]
-
-    # The pkg-config files installed suggest that headers can be found in the
-    # `include` directory. Make this so by creating symlinks from `include` to
-    # the Frameworks' Headers folders.
-    Pathname.glob("#{lib}/*.framework/Headers") do |path|
-      include.install_symlink path => path.parent.basename(".framework")
-    end
+  
+  # Backport of Qt5 patch to fix an issue with null bytes in QSetting strings.
+  patch do
+    url "https://raw.githubusercontent.com/cartr/homebrew-qt4/41669527a2aac6aeb8a5eeb58f440d3f3498910a/patches/qsetting-nulls.patch"
+    sha256 "0deb4cd107853b1cc0800e48bb36b3d5682dc4a2a29eb34a6d032ac4ffe32ec3"
   end
-
-  def caveats; <<-EOS.undent
-    We agreed to the Qt opensource license for you.
-    If this is unacceptable you should uninstall.
-    EOS
-  end
+  
+  setup_qt_formula [], "src/corelib"
 end
